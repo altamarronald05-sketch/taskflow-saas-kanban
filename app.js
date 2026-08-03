@@ -1,23 +1,31 @@
 /* ==========================================================================
-   TaskFlow SaaS | Hybrid Full-Stack Client (Supabase Cloud + Node.js Engine)
+   TaskFlow SaaS | Hybrid Client (Time Tracking & Sprint Analytics Engine)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
     const NODE_API_URL = 'http://localhost:3000/api';
 
     let state = {
-        mode: 'node', // 'supabase' or 'node'
+        mode: 'node',
         currentUser: null,
         sessionToken: localStorage.getItem('taskflow_session_token') || null,
         tasks: [],
         activeFilter: 'all',
         searchTerm: '',
+        activeTimerTaskId: null,
+        activeTimerInterval: null,
         pomodoro: {
             timeLeft: 25 * 60,
+            initialDuration: 25 * 60,
             isRunning: false,
-            timerId: null
+            timerId: null,
+            completedSessions: 0
         }
     };
+
+    // Chart.js Instances
+    let chartVelocityInstance = null;
+    let chartPriorityInstance = null;
 
     // DOM Elements - Auth
     const authOverlay = document.getElementById('auth-overlay');
@@ -48,11 +56,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const taskSearchInput = document.getElementById('task-search-input');
     const btnExportCsv = document.getElementById('btn-export-csv');
 
-    // DOM Elements - Pomodoro Timer
+    // DOM Elements - Navigation SPA
+    const navItems = {
+        'kanban': document.getElementById('nav-kanban'),
+        'analytics': document.getElementById('nav-analytics'),
+        'timer': document.getElementById('nav-timer')
+    };
+
+    const viewSections = {
+        'kanban': document.getElementById('view-kanban'),
+        'analytics': document.getElementById('view-analytics'),
+        'timer': document.getElementById('view-timer')
+    };
+
+    // DOM Elements - Sidebar Timer
     const sidebarTimer = document.getElementById('sidebar-timer');
     const btnStartTimer = document.getElementById('btn-start-timer');
     const btnPauseTimer = document.getElementById('btn-pause-timer');
     const btnResetTimer = document.getElementById('btn-reset-timer');
+
+    // DOM Elements - Hub Pomodoro
+    const hubTimerDisplay = document.getElementById('hub-timer-display');
+    const hubBtnStart = document.getElementById('hub-btn-start');
+    const hubBtnPause = document.getElementById('hub-btn-pause');
+    const hubBtnReset = document.getElementById('hub-btn-reset');
+    const hubCompletedSessions = document.getElementById('hub-completed-sessions');
 
     // Kanban Lists DOM
     const lists = {
@@ -75,8 +103,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setupEventListeners();
         setupDragAndDrop();
         setupPomodoroTimer();
+        setupSPANavigation();
 
-        // Check if Supabase Client is initialized
         const hasSupabase = typeof initSupabaseClient === 'function' && initSupabaseClient();
 
         if (hasSupabase) {
@@ -93,6 +121,32 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 showAuthOverlay();
             }
+        }
+    }
+
+    // SPA Navigation View Switcher
+    function setupSPANavigation() {
+        Object.keys(navItems).forEach(key => {
+            if (navItems[key]) {
+                navItems[key].addEventListener('click', (e) => {
+                    e.preventDefault();
+                    switchView(key);
+                });
+            }
+        });
+    }
+
+    function switchView(targetView) {
+        Object.keys(navItems).forEach(key => {
+            if (navItems[key]) navItems[key].classList.remove('active');
+            if (viewSections[key]) viewSections[key].classList.remove('active');
+        });
+
+        if (navItems[targetView]) navItems[targetView].classList.add('active');
+        if (viewSections[targetView]) viewSections[targetView].classList.add('active');
+
+        if (targetView === 'analytics') {
+            renderAnalytics();
         }
     }
 
@@ -164,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Logout
     async function logoutUser() {
+        stopTaskTimer();
         if (state.mode === 'supabase' && supabaseClient) {
             try { await supabaseClient.auth.signOut(); } catch (e) {}
         } else if (state.sessionToken) {
@@ -189,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
         authOverlay.classList.remove('hidden');
     }
 
-    // Auth Form Logic (Supabase / Node.js)
+    // Auth Form Handlers
     function setupAuthTabs() {
         tabLoginBtn.addEventListener('click', () => {
             tabLoginBtn.classList.add('active');
@@ -205,17 +260,12 @@ document.addEventListener('DOMContentLoaded', () => {
             formLogin.classList.remove('active');
         });
 
-        // LOGIN SUBMIT
+        // LOGIN
         formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
             const btnSubmit = formLogin.querySelector('button[type="submit"]');
-
-            if (!email || !password) {
-                showToast('Ingresa tu email y contraseña', 'warning');
-                return;
-            }
 
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Autenticando...';
@@ -223,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 if (state.mode === 'supabase' && supabaseClient) {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                    
                     if (error) {
                         showToast(`Supabase: ${error.message}`, 'warning');
                     } else if (data && data.user) {
@@ -237,7 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         showToast(`¡Conectado a Supabase! Bienvenido ${user.name}`, 'success');
                     }
                 } else {
-                    // Node.js REST API Login
                     const res = await fetch(`${NODE_API_URL}/auth/login`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -256,27 +304,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast('Error de conexión al autenticar', 'warning');
             } finally {
                 btnSubmit.disabled = false;
-                btnSubmit.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
+                btnSubmit.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión en la Nube';
             }
         });
 
-        // REGISTER SUBMIT
+        // REGISTER
         formRegister.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('reg-name').value.trim();
             const email = document.getElementById('reg-email').value.trim();
             const password = document.getElementById('reg-password').value;
             const btnSubmit = formRegister.querySelector('button[type="submit"]');
-
-            if (!name || !email || !password) {
-                showToast('Completa todos los campos requeridos', 'warning');
-                return;
-            }
-
-            if (password.length < 6) {
-                showToast('La contraseña debe tener al menos 6 caracteres', 'warning');
-                return;
-            }
 
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registrando...';
@@ -296,14 +334,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (data.session) {
                             setLoggedInUser(user, data.session.access_token);
                             await fetchTasks();
-                            showToast(`¡Cuenta registrada en Supabase! Bienvenido ${name}`, 'success');
+                            showToast(`¡Cuenta registrada! Bienvenido ${name}`, 'success');
                         } else {
-                            showToast('Cuenta creada. Si requiere confirmación por correo, revisa tu email o intenta Iniciar Sesión.', 'info');
+                            showToast('Cuenta registrada en Supabase.', 'info');
                             tabLoginBtn.click();
                         }
                     }
                 } else {
-                    // Node.js REST API Register
                     const res = await fetch(`${NODE_API_URL}/auth/register`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -319,10 +356,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             } catch (err) {
-                showToast('Error de conexión al registrar cuenta', 'warning');
+                showToast('Error de conexión', 'warning');
             } finally {
                 btnSubmit.disabled = false;
-                btnSubmit.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta';
+                btnSubmit.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta en Supabase';
             }
         });
     }
@@ -346,18 +383,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         priority: t.priority,
                         category: t.category,
                         status: t.status,
-                        dueDate: t.due_date
+                        dueDate: t.due_date,
+                        timeSpent: t.time_spent || 0
                     }));
                 }
             } catch (err) {}
         } else {
-            // Node.js API
             try {
                 const res = await fetch(`${NODE_API_URL}/tasks`, {
                     headers: { 'Authorization': `Bearer ${state.sessionToken}` }
                 });
                 if (res.ok) {
-                    state.tasks = await res.json();
+                    const data = await res.json();
+                    state.tasks = data.map(t => ({ ...t, timeSpent: t.timeSpent || 0 }));
                 }
             } catch (err) {}
         }
@@ -402,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('stat-completed-tasks').textContent = `Completadas: ${completedCount}`;
     }
 
-    // Create Card Element
+    // Create Task Card DOM (With Time Tracker Bar)
     function createTaskCardElement(task) {
         const card = document.createElement('div');
         card.className = 'task-card';
@@ -410,6 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.setAttribute('data-id', task.id);
 
         const priorityClass = (task.priority || 'media').toLowerCase();
+        const isTimerRunning = state.activeTimerTaskId === task.id;
 
         card.innerHTML = `
             <div class="task-tags">
@@ -418,6 +457,17 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <h4 class="task-title">${escapeHtml(task.title)}</h4>
             <p class="task-desc">${escapeHtml(task.desc)}</p>
+
+            <!-- Task Time Tracker Bar -->
+            <div class="task-timer-bar">
+                <button class="task-timer-btn ${isTimerRunning ? 'active' : ''}" data-id="${task.id}" title="${isTimerRunning ? 'Pausar Cronómetro' : 'Iniciar Cronómetro'}">
+                    <i class="fa-solid ${isTimerRunning ? 'fa-pause' : 'fa-play'}"></i>
+                </button>
+                <div class="task-time-display" id="task-time-${task.id}">
+                    <i class="fa-regular fa-clock"></i> ${formatTimeSpent(task.timeSpent || 0)}
+                </div>
+            </div>
+
             <div class="task-footer">
                 <span class="task-date"><i class="fa-regular fa-calendar"></i> ${task.dueDate}</span>
                 <div class="task-actions">
@@ -426,6 +476,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
+
+        // Time Tracker Button Click
+        card.querySelector('.task-timer-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleTaskTimer(task.id);
+        });
 
         card.querySelector('.btn-card-action.edit').addEventListener('click', (e) => {
             e.stopPropagation();
@@ -443,28 +499,87 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
+    // TASK TIME TRACKER ENGINE
+    function toggleTaskTimer(taskId) {
+        if (state.activeTimerTaskId === taskId) {
+            stopTaskTimer();
+            showToast('Cronómetro de tarea pausado', 'info');
+        } else {
+            stopTaskTimer();
+            startTaskTimer(taskId);
+            showToast('Cronómetro iniciado en la tarea', 'success');
+        }
+    }
+
+    function startTaskTimer(taskId) {
+        state.activeTimerTaskId = taskId;
+        renderBoard();
+
+        state.activeTimerInterval = setInterval(() => {
+            const task = state.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.timeSpent = (task.timeSpent || 0) + 1;
+                const timeEl = document.getElementById(`task-time-${taskId}`);
+                if (timeEl) {
+                    timeEl.innerHTML = `<i class="fa-regular fa-clock"></i> ${formatTimeSpent(task.timeSpent)}`;
+                }
+            } else {
+                stopTaskTimer();
+            }
+        }, 1000);
+    }
+
+    function stopTaskTimer() {
+        if (state.activeTimerInterval) {
+            clearInterval(state.activeTimerInterval);
+            state.activeTimerInterval = null;
+        }
+
+        if (state.activeTimerTaskId) {
+            const taskId = state.activeTimerTaskId;
+            const task = state.tasks.find(t => t.id === taskId);
+            state.activeTimerTaskId = null;
+            renderBoard();
+
+            if (task) {
+                persistTaskTime(task.id, task.timeSpent);
+            }
+        }
+    }
+
+    async function persistTaskTime(id, timeSpent) {
+        if (state.mode === 'supabase' && supabaseClient) {
+            await supabaseClient.from('tasks').update({ time_spent: timeSpent }).eq('id', id);
+        } else {
+            try {
+                await fetch(`${NODE_API_URL}/tasks/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
+                    body: JSON.stringify({ timeSpent })
+                });
+            } catch (e) {}
+        }
+    }
+
+    function formatTimeSpent(totalSecs) {
+        const hrs = Math.floor(totalSecs / 3600);
+        const mins = Math.floor((totalSecs % 3600) / 60);
+        const secs = totalSecs % 60;
+
+        if (hrs > 0) return `${hrs}h ${mins}m`;
+        if (mins > 0) return `${mins}m ${secs}s`;
+        return `${secs}s`;
+    }
+
     // Drag and Drop
     let draggedTaskId = null;
-
-    function handleDragStart(e) {
-        draggedTaskId = parseInt(this.getAttribute('data-id'));
-        this.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-    }
-
-    function handleDragEnd() {
-        this.classList.remove('dragging');
-        document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over'));
-    }
+    function handleDragStart(e) { draggedTaskId = parseInt(this.getAttribute('data-id')); this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
+    function handleDragEnd() { this.classList.remove('dragging'); document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over')); }
 
     function setupDragAndDrop() {
         const columns = document.querySelectorAll('.kanban-column');
         columns.forEach(col => {
-            col.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                col.classList.add('drag-over');
-            });
+            col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drag-over'); });
             col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
             col.addEventListener('drop', (e) => {
                 e.preventDefault();
@@ -477,7 +592,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Update Status
     async function updateTaskStatusAPI(id, newStatus) {
         const task = state.tasks.find(t => t.id === id);
         if (task && task.status !== newStatus) {
@@ -486,43 +600,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (state.mode === 'supabase' && supabaseClient) {
                 await supabaseClient.from('tasks').update({ status: newStatus }).eq('id', id);
-                showToast(`Tarea guardada en Supabase Cloud`, 'info');
             } else {
                 try {
                     await fetch(`${NODE_API_URL}/tasks/${id}`, {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${state.sessionToken}`
-                        },
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
                         body: JSON.stringify({ status: newStatus })
                     });
-                    showToast(`Tarea actualizada`, 'info');
                 } catch (err) {}
             }
+            showToast(`Tarea movida a "${newStatus}"`, 'info');
         }
     }
 
-    // Delete Task
     async function deleteTaskAPI(id) {
+        if (state.activeTimerTaskId === id) stopTaskTimer();
         state.tasks = state.tasks.filter(t => t.id !== id);
         renderBoard();
 
         if (state.mode === 'supabase' && supabaseClient) {
             await supabaseClient.from('tasks').delete().eq('id', id);
-            showToast('Tarea eliminada de Supabase', 'warning');
         } else {
             try {
                 await fetch(`${NODE_API_URL}/tasks/${id}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${state.sessionToken}` }
                 });
-                showToast('Tarea eliminada', 'warning');
             } catch (err) {}
         }
+        showToast('Tarea eliminada', 'warning');
     }
 
-    // Save Task Form Submit
+    // Save Form Submit
     async function handleFormSubmit(e) {
         e.preventDefault();
         const idInput = document.getElementById('task-id').value;
@@ -536,60 +645,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!title) return;
 
         if (idInput) {
-            // Edit
             const id = parseInt(idInput);
             const task = state.tasks.find(t => t.id === id);
             if (task) {
-                task.title = title;
-                task.desc = desc;
-                task.priority = priority;
-                task.category = category;
-                task.status = status;
-                task.dueDate = dueDate;
+                task.title = title; task.desc = desc; task.priority = priority; task.category = category; task.status = status; task.dueDate = dueDate;
                 renderBoard();
 
                 if (state.mode === 'supabase' && supabaseClient) {
-                    await supabaseClient.from('tasks').update({
-                        title, description: desc, priority, category, status, due_date: dueDate
-                    }).eq('id', id);
+                    await supabaseClient.from('tasks').update({ title, description: desc, priority, category, status, due_date: dueDate }).eq('id', id);
                 } else {
                     await fetch(`${NODE_API_URL}/tasks/${id}`, {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${state.sessionToken}`
-                        },
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
                         body: JSON.stringify({ title, desc, priority, category, status, dueDate })
                     });
                 }
                 showToast('Tarea actualizada', 'success');
             }
         } else {
-            // Create
             if (state.mode === 'supabase' && supabaseClient) {
                 const { data, error } = await supabaseClient.from('tasks').insert([{
-                    title, description: desc, priority, category, status, due_date: dueDate
+                    title, description: desc, priority, category, status, due_date: dueDate, time_spent: 0
                 }]).select();
 
                 if (!error && data && data.length > 0) {
                     const t = data[0];
-                    state.tasks.unshift({
-                        id: t.id, title: t.title, desc: t.description, priority: t.priority, category: t.category, status: t.status, dueDate: t.due_date
-                    });
+                    state.tasks.unshift({ id: t.id, title: t.title, desc: t.description, priority: t.priority, category: t.category, status: t.status, dueDate: t.due_date, timeSpent: 0 });
                     renderBoard();
-                    showToast('Tarea creada en Supabase Cloud PostgreSQL (201)', 'success');
-                } else if (error) {
-                    showToast(`Error Supabase DB: ${error.message}`, 'warning');
+                    showToast('Tarea creada en Supabase (201)', 'success');
                 }
             } else {
                 try {
                     const res = await fetch(`${NODE_API_URL}/tasks`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${state.sessionToken}`
-                        },
-                        body: JSON.stringify({ title, desc, priority, category, status, dueDate })
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.sessionToken}` },
+                        body: JSON.stringify({ title, desc, priority, category, status, dueDate, timeSpent: 0 })
                     });
                     if (res.ok) {
                         const newTask = await res.json();
@@ -602,6 +692,77 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         taskModal.classList.remove('active');
+    }
+
+    // RENDER SPRINT ANALYTICS DASHBOARD
+    function renderAnalytics() {
+        const totalSecs = state.tasks.reduce((sum, t) => sum + (t.timeSpent || 0), 0);
+        document.getElementById('kpi-total-time').textContent = formatTimeSpent(totalSecs);
+
+        const totalTasks = state.tasks.length;
+        const completedTasks = state.tasks.filter(t => t.status === 'done').length;
+        const rate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : 0;
+        document.getElementById('kpi-completion-rate').textContent = `${rate}%`;
+
+        const highPriorityCount = state.tasks.filter(t => t.priority === 'Alta').length;
+        document.getElementById('kpi-high-priority').textContent = highPriorityCount;
+
+        // Chart 1: Sprint Velocity Line / Bar Chart
+        const ctxVelocity = document.getElementById('chartSprintVelocity').getContext('2d');
+        if (chartVelocityInstance) chartVelocityInstance.destroy();
+
+        chartVelocityInstance = new Chart(ctxVelocity, {
+            type: 'bar',
+            data: {
+                labels: ['Por Hacer', 'En Progreso', 'En Revisión', 'Completadas'],
+                datasets: [{
+                    label: 'Cantidad de Tareas por Estado',
+                    data: [
+                        state.tasks.filter(t => t.status === 'todo').length,
+                        state.tasks.filter(t => t.status === 'in-progress').length,
+                        state.tasks.filter(t => t.status === 'review').length,
+                        completedTasks
+                    ],
+                    backgroundColor: ['#6366f1', '#f59e0b', '#a855f7', '#10b981'],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+            }
+        });
+
+        // Chart 2: Priority Distribution Doughnut Chart
+        const ctxPriority = document.getElementById('chartPriorityDistribution').getContext('2d');
+        if (chartPriorityInstance) chartPriorityInstance.destroy();
+
+        chartPriorityInstance = new Chart(ctxPriority, {
+            type: 'doughnut',
+            data: {
+                labels: ['🔥 Alta', '⚡ Media', '🌱 Baja'],
+                datasets: [{
+                    data: [
+                        highPriorityCount,
+                        state.tasks.filter(t => t.priority === 'Media').length,
+                        state.tasks.filter(t => t.priority === 'Baja').length
+                    ],
+                    backgroundColor: ['#f43f5e', '#f59e0b', '#10b981'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } },
+                cutout: '70%'
+            }
+        });
     }
 
     // Modal Helpers
@@ -638,9 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnLogout.addEventListener('click', logoutUser);
 
         document.querySelectorAll('.btn-add-col').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                openAddTaskModal(e.currentTarget.getAttribute('data-col'));
-            });
+            btn.addEventListener('click', (e) => { openAddTaskModal(e.currentTarget.getAttribute('data-col')); });
         });
 
         taskSearchInput.addEventListener('input', (e) => {
@@ -658,13 +817,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         btnExportCsv.addEventListener('click', () => {
-            if (state.tasks.length === 0) {
-                showToast('No hay tareas para exportar', 'warning');
-                return;
-            }
-            let csv = 'ID,Título,Descripción,Prioridad,Categoría,Estado,Fecha Límite\n';
+            if (state.tasks.length === 0) { showToast('No hay tareas para exportar', 'warning'); return; }
+            let csv = 'ID,Título,Descripción,Prioridad,Categoría,Estado,Tiempo Invertido,Fecha Límite\n';
             state.tasks.forEach(t => {
-                csv += `${t.id},"${(t.title||'').replace(/"/g, '""')}","${(t.desc||'').replace(/"/g, '""')}",${t.priority},${t.category},${t.status},${t.dueDate}\n`;
+                csv += `${t.id},"${(t.title||'').replace(/"/g, '""')}","${(t.desc||'').replace(/"/g, '""')}",${t.priority},${t.category},${t.status},"${formatTimeSpent(t.timeSpent||0)}",${t.dueDate}\n`;
             });
             const link = document.createElement('a');
             link.href = encodeURI('data:text/csv;charset=utf-8,' + csv);
@@ -672,47 +828,78 @@ document.addEventListener('DOMContentLoaded', () => {
             link.click();
             showToast('Reporte CSV descargado con éxito', 'success');
         });
+
+        // Hub Pomodoro Controls
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                const mins = parseInt(e.currentTarget.getAttribute('data-minutes'));
+                state.pomodoro.initialDuration = mins * 60;
+                state.pomodoro.timeLeft = mins * 60;
+                updateHubTimerDisplay();
+            });
+        });
+
+        hubBtnStart.addEventListener('click', startPomodoro);
+        hubBtnPause.addEventListener('click', pausePomodoro);
+        hubBtnReset.addEventListener('click', resetPomodoro);
     }
 
-    // Pomodoro Timer Logic
+    // POMODORO ENGINE
     function setupPomodoroTimer() {
-        updateTimerDisplay();
+        updateSidebarTimerDisplay();
+        updateHubTimerDisplay();
 
-        btnStartTimer.addEventListener('click', () => {
-            if (!state.pomodoro.isRunning) {
-                state.pomodoro.isRunning = true;
-                state.pomodoro.timerId = setInterval(() => {
-                    if (state.pomodoro.timeLeft > 0) {
-                        state.pomodoro.timeLeft--;
-                        updateTimerDisplay();
-                    } else {
-                        clearInterval(state.pomodoro.timerId);
-                        state.pomodoro.isRunning = false;
-                        showToast('¡Sesión de Focus completada! ☕', 'success');
-                    }
-                }, 1000);
-            }
-        });
+        btnStartTimer.addEventListener('click', startPomodoro);
+        btnPauseTimer.addEventListener('click', pausePomodoro);
+        btnResetTimer.addEventListener('click', resetPomodoro);
+    }
 
-        btnPauseTimer.addEventListener('click', () => {
-            if (state.pomodoro.isRunning) {
-                clearInterval(state.pomodoro.timerId);
-                state.pomodoro.isRunning = false;
-            }
-        });
+    function startPomodoro() {
+        if (!state.pomodoro.isRunning) {
+            state.pomodoro.isRunning = true;
+            state.pomodoro.timerId = setInterval(() => {
+                if (state.pomodoro.timeLeft > 0) {
+                    state.pomodoro.timeLeft--;
+                    updateSidebarTimerDisplay();
+                    updateHubTimerDisplay();
+                } else {
+                    clearInterval(state.pomodoro.timerId);
+                    state.pomodoro.isRunning = false;
+                    state.pomodoro.completedSessions++;
+                    hubCompletedSessions.textContent = `${state.pomodoro.completedSessions} Sesiones`;
+                    showToast('¡Sesión de Focus Pomodoro completada! ☕', 'success');
+                }
+            }, 1000);
+        }
+    }
 
-        btnResetTimer.addEventListener('click', () => {
+    function pausePomodoro() {
+        if (state.pomodoro.isRunning) {
             clearInterval(state.pomodoro.timerId);
             state.pomodoro.isRunning = false;
-            state.pomodoro.timeLeft = 25 * 60;
-            updateTimerDisplay();
-        });
+        }
     }
 
-    function updateTimerDisplay() {
+    function resetPomodoro() {
+        clearInterval(state.pomodoro.timerId);
+        state.pomodoro.isRunning = false;
+        state.pomodoro.timeLeft = state.pomodoro.initialDuration;
+        updateSidebarTimerDisplay();
+        updateHubTimerDisplay();
+    }
+
+    function updateSidebarTimerDisplay() {
         const mins = Math.floor(state.pomodoro.timeLeft / 60);
         const secs = state.pomodoro.timeLeft % 60;
         sidebarTimer.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateHubTimerDisplay() {
+        const mins = Math.floor(state.pomodoro.timeLeft / 60);
+        const secs = state.pomodoro.timeLeft % 60;
+        hubTimerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
     function showToast(msg, type = 'info') {
@@ -720,12 +907,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
 
-        const icons = {
-            'success': 'fa-circle-check',
-            'warning': 'fa-triangle-exclamation',
-            'info': 'fa-circle-info'
-        };
-
+        const icons = { 'success': 'fa-circle-check', 'warning': 'fa-triangle-exclamation', 'info': 'fa-circle-info' };
         toast.innerHTML = `<i class="fa-solid ${icons[type] || 'fa-bell'}"></i> <span>${escapeHtml(msg)}</span>`;
         toastContainer.appendChild(toast);
 

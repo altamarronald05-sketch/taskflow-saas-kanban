@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskFlow SaaS | Agile Cloud Workspace (Supabase PostgreSQL + Node.js REST API)</title>
-    <meta name="description" content="Plataforma Full-Stack de gestión de proyectos estilo Kanban con autenticación de usuarios, Supabase Cloud PostgreSQL, arrastrar y soltar, temporizador Pomodoro.">
+    <title>TaskFlow SaaS | Agile Cloud Workspace, Analytics & Time Tracker</title>
+    <meta name="description" content="Plataforma Full-Stack de gestión de proyectos estilo Kanban con autenticación de usuarios, Supabase Cloud PostgreSQL, Métricas de Sprint y Time Tracking por tarea.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="styles.css">
@@ -98,15 +100,15 @@
             </div>
 
             <nav class="nav-menu">
-                <a href="#" class="nav-item active" id="nav-kanban">
+                <a href="#kanban" class="nav-item active" id="nav-kanban">
                     <i class="fa-solid fa-bars-staggered"></i>
                     <span>Tablero Kanban</span>
                 </a>
-                <a href="#" class="nav-item" id="nav-analytics">
+                <a href="#analytics" class="nav-item" id="nav-analytics">
                     <i class="fa-solid fa-chart-line"></i>
                     <span>Métricas & Sprint</span>
                 </a>
-                <a href="#" class="nav-item" id="nav-timer">
+                <a href="#timer" class="nav-item" id="nav-timer">
                     <i class="fa-solid fa-stopwatch"></i>
                     <span>Timer Pomodoro</span>
                 </a>
@@ -144,7 +146,7 @@
             <header class="top-header">
                 <div class="header-left">
                     <h2>Sprint Kanban de <span id="header-user-firstname">Usuario</span></h2>
-                    <span class="sprint-badge"><i class="fa-solid fa-cloud"></i> PostgreSQL Cloud + Row Level Security (RLS)</span>
+                    <span class="sprint-badge"><i class="fa-solid fa-cloud"></i> PostgreSQL Cloud + Task Time Tracking</span>
                 </div>
                 <div class="header-actions">
                     <div class="search-box">
@@ -160,82 +162,171 @@
                 </div>
             </header>
 
-            <!-- Main Kanban Board -->
-            <div class="kanban-scroll-area">
-                <!-- Filter Bar -->
-                <div class="filter-bar">
-                    <div class="filter-group">
-                        <span class="filter-label">Prioridad:</span>
-                        <button class="filter-chip active" data-priority="all">Todas</button>
-                        <button class="filter-chip" data-priority="Alta">🔥 Alta</button>
-                        <button class="filter-chip" data-priority="Media">⚡ Media</button>
-                        <button class="filter-chip" data-priority="Baja">🌱 Baja</button>
+            <!-- VIEW 1: KANBAN BOARD -->
+            <div class="view-section active" id="view-kanban">
+                <div class="kanban-scroll-area">
+                    <!-- Filter Bar -->
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <span class="filter-label">Prioridad:</span>
+                            <button class="filter-chip active" data-priority="all">Todas</button>
+                            <button class="filter-chip" data-priority="Alta">🔥 Alta</button>
+                            <button class="filter-chip" data-priority="Media">⚡ Media</button>
+                            <button class="filter-chip" data-priority="Baja">🌱 Baja</button>
+                        </div>
+                        <div class="stats-mini">
+                            <span id="stat-total-tasks">0 Tareas</span> |
+                            <span id="stat-completed-tasks" class="highlight-green">Completadas: 0</span>
+                        </div>
                     </div>
-                    <div class="stats-mini">
-                        <span id="stat-total-tasks">0 Tareas</span> |
-                        <span id="stat-completed-tasks" class="highlight-green">Completadas: 0</span>
+
+                    <!-- Kanban Columns Grid -->
+                    <div class="kanban-grid">
+                        <!-- Column 1: To Do -->
+                        <div class="kanban-column" id="col-todo" data-status="todo">
+                            <div class="column-header">
+                                <div class="column-title">
+                                    <span class="dot-indicator blue"></span>
+                                    <h3>Por Hacer</h3>
+                                    <span class="count-badge" id="count-todo">0</span>
+                                </div>
+                                <button class="btn-add-col" data-col="todo"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="task-list" id="list-todo"></div>
+                        </div>
+
+                        <!-- Column 2: In Progress -->
+                        <div class="kanban-column" id="col-in-progress" data-status="in-progress">
+                            <div class="column-header">
+                                <div class="column-title">
+                                    <span class="dot-indicator amber"></span>
+                                    <h3>En Progreso</h3>
+                                    <span class="count-badge" id="count-in-progress">0</span>
+                                </div>
+                                <button class="btn-add-col" data-col="in-progress"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="task-list" id="list-in-progress"></div>
+                        </div>
+
+                        <!-- Column 3: In Review -->
+                        <div class="kanban-column" id="col-review" data-status="review">
+                            <div class="column-header">
+                                <div class="column-title">
+                                    <span class="dot-indicator purple"></span>
+                                    <h3>En Revisión</h3>
+                                    <span class="count-badge" id="count-review">0</span>
+                                </div>
+                                <button class="btn-add-col" data-col="review"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="task-list" id="list-review"></div>
+                        </div>
+
+                        <!-- Column 4: Done -->
+                        <div class="kanban-column" id="col-done" data-status="done">
+                            <div class="column-header">
+                                <div class="column-title">
+                                    <span class="dot-indicator green"></span>
+                                    <h3>Completado</h3>
+                                    <span class="count-badge" id="count-done">0</span>
+                                </div>
+                                <button class="btn-add-col" data-col="done"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="task-list" id="list-done"></div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Kanban Columns Grid -->
-                <div class="kanban-grid">
-                    <!-- Column 1: To Do -->
-                    <div class="kanban-column" id="col-todo" data-status="todo">
-                        <div class="column-header">
-                            <div class="column-title">
-                                <span class="dot-indicator blue"></span>
-                                <h3>Por Hacer</h3>
-                                <span class="count-badge" id="count-todo">0</span>
+            <!-- VIEW 2: SPRINT METRICS & ANALYTICS -->
+            <div class="view-section" id="view-analytics">
+                <div class="analytics-container">
+                    <div class="analytics-header">
+                        <h2><i class="fa-solid fa-chart-line"></i> Dashboard de Métricas & Rendimiento del Sprint</h2>
+                        <p>Análisis en tiempo real de velocidad de trabajo, horas invertidas y tasa de resolución.</p>
+                    </div>
+
+                    <!-- KPI Cards Row -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card glass">
+                            <div class="kpi-icon blue"><i class="fa-solid fa-clock"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-title">Tiempo Total Invertido</span>
+                                <h3 id="kpi-total-time">0h 0m</h3>
+                                <span class="kpi-subtext">Acumulado en tareas</span>
                             </div>
-                            <button class="btn-add-col" data-col="todo"><i class="fa-solid fa-plus"></i></button>
                         </div>
-                        <div class="task-list" id="list-todo">
-                            <!-- Empty State or User Cards -->
+                        <div class="kpi-card glass">
+                            <div class="kpi-icon green"><i class="fa-solid fa-circle-check"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-title">Tasa de Completado</span>
+                                <h3 id="kpi-completion-rate">0%</h3>
+                                <span class="kpi-subtext">Del total del Sprint</span>
+                            </div>
+                        </div>
+                        <div class="kpi-card glass">
+                            <div class="kpi-icon amber"><i class="fa-solid fa-fire"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-title">Tareas de Alta Prioridad</span>
+                                <h3 id="kpi-high-priority">0</h3>
+                                <span class="kpi-subtext">Requieren atención</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Column 2: In Progress -->
-                    <div class="kanban-column" id="col-in-progress" data-status="in-progress">
-                        <div class="column-header">
-                            <div class="column-title">
-                                <span class="dot-indicator amber"></span>
-                                <h3>En Progreso</h3>
-                                <span class="count-badge" id="count-in-progress">0</span>
+                    <!-- Charts Grid -->
+                    <div class="charts-grid">
+                        <div class="chart-card glass large">
+                            <div class="chart-header">
+                                <h3>Velocidad del Sprint & Burndown</h3>
+                                <span class="sub-text">Tareas completadas vs pendientes por estado</span>
                             </div>
-                            <button class="btn-add-col" data-col="in-progress"><i class="fa-solid fa-plus"></i></button>
+                            <div class="chart-container">
+                                <canvas id="chartSprintVelocity"></canvas>
+                            </div>
                         </div>
-                        <div class="task-list" id="list-in-progress">
-                            <!-- Empty State or User Cards -->
+
+                        <div class="chart-card glass medium">
+                            <div class="chart-header">
+                                <h3>Carga por Prioridad</h3>
+                                <span class="sub-text">Distribución del trabajo</span>
+                            </div>
+                            <div class="chart-container pie-container">
+                                <canvas id="chartPriorityDistribution"></canvas>
+                            </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Column 3: In Review -->
-                    <div class="kanban-column" id="col-review" data-status="review">
-                        <div class="column-header">
-                            <div class="column-title">
-                                <span class="dot-indicator purple"></span>
-                                <h3>En Revisión</h3>
-                                <span class="count-badge" id="count-review">0</span>
-                            </div>
-                            <button class="btn-add-col" data-col="review"><i class="fa-solid fa-plus"></i></button>
+            <!-- VIEW 3: FULL POMODORO FOCUS HUB -->
+            <div class="view-section" id="view-timer">
+                <div class="pomodoro-hub-container">
+                    <div class="pomodoro-hub-card glass">
+                        <div class="hub-header">
+                            <i class="fa-solid fa-stopwatch"></i>
+                            <h2>Sprint Focus Hub (Pomodoro Engine)</h2>
+                            <p>Técnica de enfoque de 25 minutos de trabajo concentrado con pausas estratégicas.</p>
                         </div>
-                        <div class="task-list" id="list-review">
-                            <!-- Empty State or User Cards -->
-                        </div>
-                    </div>
+                        
+                        <div class="hub-timer-display" id="hub-timer-display">25:00</div>
 
-                    <!-- Column 4: Done -->
-                    <div class="kanban-column" id="col-done" data-status="done">
-                        <div class="column-header">
-                            <div class="column-title">
-                                <span class="dot-indicator green"></span>
-                                <h3>Completado</h3>
-                                <span class="count-badge" id="count-done">0</span>
-                            </div>
-                            <button class="btn-add-col" data-col="done"><i class="fa-solid fa-plus"></i></button>
+                        <div class="hub-mode-selector">
+                            <button class="mode-btn active" data-minutes="25">Enfoque (25m)</button>
+                            <button class="mode-btn" data-minutes="5">Pausa Corta (5m)</button>
+                            <button class="mode-btn" data-minutes="15">Pausa Larga (15m)</button>
                         </div>
-                        <div class="task-list" id="list-done">
-                            <!-- Empty State or User Cards -->
+
+                        <div class="hub-controls">
+                            <button class="btn btn-primary btn-lg" id="hub-btn-start"><i class="fa-solid fa-play"></i> Iniciar Sesión</button>
+                            <button class="btn btn-secondary btn-lg" id="hub-btn-pause"><i class="fa-solid fa-pause"></i> Pausar</button>
+                            <button class="btn btn-secondary btn-lg" id="hub-btn-reset"><i class="fa-solid fa-rotate-left"></i> Reiniciar</button>
+                        </div>
+
+                        <div class="hub-stats">
+                            <div class="hub-stat-item">
+                                <span class="stat-label">Sesiones Completadas Hoy</span>
+                                <span class="stat-val" id="hub-completed-sessions">0 Sesiones</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -247,7 +338,7 @@
     <div class="modal-backdrop" id="task-modal">
         <div class="modal-card glass">
             <div class="modal-header">
-                <h3 id="modal-form-title"><i class="fa-solid fa-square-plus"></i> Nueva Tarea en la Nube</h3>
+                <h3 id="modal-form-title"><i class="fa-solid fa-square-plus"></i> Nueva Tarea</h3>
                 <button class="btn-close" id="close-modal"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <form id="form-task">
@@ -297,7 +388,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="btn-cancel-modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar en Supabase PostgreSQL</button>
+                    <button type="submit" class="btn btn-primary">Guardar Tarea</button>
                 </div>
             </form>
         </div>

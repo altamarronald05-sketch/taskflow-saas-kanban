@@ -14,42 +14,32 @@ CREATE TABLE IF NOT EXISTS public.tasks (
     category TEXT DEFAULT 'Frontend',
     status TEXT DEFAULT 'todo' CHECK (status IN ('todo', 'in-progress', 'review', 'done')),
     due_date DATE,
+    time_spent INTEGER DEFAULT 0, -- Tiempo invertido en segundos
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- Asegurar columna time_spent si la tabla ya existía previamente
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS time_spent INTEGER DEFAULT 0;
+
 -- 2. Habilitar Seguridad a Nivel de Filas (Row Level Security - RLS)
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 
--- 3. Crear Políticas de Seguridad RLS (Los usuarios solo pueden ver, insertar, editar y eliminar SUS PROPIAS tareas)
-
--- Política de Selección (SELECT)
+-- 3. Crear Políticas de Seguridad RLS
 CREATE POLICY "Los usuarios solo pueden consultar sus propias tareas" 
-ON public.tasks 
-FOR SELECT 
-USING (auth.uid() = user_id);
+ON public.tasks FOR SELECT USING (auth.uid() = user_id);
 
--- Política de Inserción (INSERT)
 CREATE POLICY "Los usuarios solo pueden insertar tareas asignadas a su ID" 
-ON public.tasks 
-FOR INSERT 
-WITH CHECK (auth.uid() = user_id);
+ON public.tasks FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Política de Actualización (UPDATE)
 CREATE POLICY "Los usuarios solo pueden actualizar sus propias tareas" 
-ON public.tasks 
-FOR UPDATE 
-USING (auth.uid() = user_id);
+ON public.tasks FOR UPDATE USING (auth.uid() = user_id);
 
--- Política de Eliminación (DELETE)
 CREATE POLICY "Los usuarios solo pueden eliminar sus propias tareas" 
-ON public.tasks 
-FOR DELETE 
-USING (auth.uid() = user_id);
+ON public.tasks FOR DELETE USING (auth.uid() = user_id);
 
--- 4. Crear Índices para Optimización de Consultas por Usuario y Estado
+-- 4. Crear Índices para Optimización de Consultas
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON public.tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON public.tasks(status);
 
--- Confirmación
-COMMENT ON TABLE public.tasks IS 'Tabla de gestión de tareas del proyecto TaskFlow SaaS con RLS activado.';
+COMMENT ON TABLE public.tasks IS 'Tabla de gestión de tareas del proyecto TaskFlow SaaS con RLS y Time Tracking activados.';
