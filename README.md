@@ -1,83 +1,62 @@
-# ⚡ TaskFlow SaaS — Hybrid Supabase Cloud & Node.js Full-Stack Workspace
+# ⚡ TaskFlow Pro — Agile Workspace, Task Time Tracker & Sprint Analytics
 
-[![Vercel Deployment](https://img.shields.io/badge/Vercel-Live_Demo-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://taskflow-saas-kanban.vercel.app)
-[![Supabase PostgreSQL](https://img.shields.io/badge/Supabase-Cloud_PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
-[![Node.js API](https://img.shields.io/badge/Node.js-REST_API-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
+[![Vercel Live Demo](https://img.shields.io/badge/Vercel-Live_Production_Demo-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://taskflow-saas-kanban.vercel.app)
+[![Status](https://img.shields.io/badge/Status-100%25_Live-10B981?style=for-the-badge)](https://taskflow-saas-kanban.vercel.app)
+[![License](https://img.shields.io/badge/License-MIT-6366F1?style=for-the-badge)](./LICENSE)
 
-**TaskFlow SaaS** es una plataforma **Full-Stack nivel Producción / Enterprise** inspirada en Trello y Linear. Soporta una arquitectura híbrida con **Supabase Cloud (PostgreSQL + Auth + RLS)** y respaldo local en **Node.js REST API**.
+**TaskFlow Pro** es una plataforma SaaS de gestión de proyectos y Sprints ágiles diseñada para optimizar la productividad de equipos de desarrollo y profesionales. Permite organizar tareas mediante tableros Kanban interactivos, medir el tiempo exacto invertido en cada actividad, analizar la velocidad de trabajo con gráficos en tiempo real y mantener el enfoque mediante temporizadores Pomodoro.
 
-![TaskFlow SaaS Banner](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80)
-
----
-
-## 🚀 Enlace de Demo En Vivo (Live Production Demo)
-
-🌐 **Prueba la aplicación web en producción:**  
-👉 [https://taskflow-saas-kanban.vercel.app](https://taskflow-saas-kanban.vercel.app)
+![TaskFlow Pro Banner](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80)
 
 ---
 
-## ☁️ Arquitectura Full-Stack en la Nube
+## 🌐 Demo En Vivo en Producción
 
-```
-                              ┌──────────────────────────────────┐
-                              │  Supabase Cloud (PostgreSQL)     │
-                              │  - Auth JWT                      │
-                              │  - Tabla tasks + RLS Policies    │
-                              └────────────────┬─────────────────┘
-                                               │
-                                               ▼
-   ┌────────────────────────┐    HTTP / WebSockets Realtime     ┌────────────────────────┐
-   │    Client Frontend     │  ◄──────────────────────────────► │     Node.js Engine     │
-   │ (HTML5, CSS3, JS App)  │                                   │  (Respaldo REST Local) │
-   └────────────────────────┘                                   └────────────────────────┘
-```
+Prueba la aplicación funcionando en vivo en tu navegador sin necesidad de instalar nada:  
+👉 **[https://taskflow-saas-kanban.vercel.app](https://taskflow-saas-kanban.vercel.app)**
 
 ---
 
-## 🛠️ Guía Rápida de Configuración en Supabase Cloud (2 Minutos)
+## 🔥 Funcionalidades Principales
 
-1. **Crea un Proyecto Gratis en Supabase**:
-   - Ingresa a [https://supabase.com](https://supabase.com) y crea un nuevo proyecto.
+### 📌 1. Tablero Kanban Drag & Drop Interactivo
+- **Organización por Columnas**: Clasifica el flujo de trabajo en 4 estados (*Por Hacer*, *En Progreso*, *En Revisión* y *Completado*).
+- **Arrastrar y Soltar**: Mueve tarjetas entre columnas con un simple gesto de ratón con retroalimentación visual fluida.
+- **Filtros por Prioridad**: Filtra instantáneamente tareas de prioridad 🔥 *Alta*, ⚡ *Media* y 🌱 *Baja*.
+- **Búsqueda Global**: Encuentra cualquier tarea en tiempo real por título, categoría o descripción.
 
-2. **Ejecuta el Script de Base de Datos SQL**:
-   - Copia el contenido del archivo [`schema.sql`](./schema.sql).
-   - En tu panel de Supabase, ve al menú izquierdo a **SQL Editor** ➔ **New Query**.
-   - Pega el código SQL y presiona **Run**. Esto creará la tabla `tasks`, sus índices y las políticas de seguridad **Row Level Security (RLS)**.
+### ⏱️ 2. Seguimiento de Tiempo Individual por Tarea (Time Tracking)
+- **Cronómetro por Tarjeta**: Cada tarea incluye su propio botón `Play / Pause` para medir el tiempo real de trabajo.
+- **Medición de Tiempo Acumulado**: Acumula y muestra el tiempo transcurrido en formato legíble (ejemplo: `45s`, `15m` o `1h 30m`).
+- **Persistencia en la Nube**: El tiempo invertido se sincroniza y guarda automáticamente.
 
-3. **Conecta tus llaves API**:
-   - En Supabase, ve a **Project Settings** ➔ **API**.
-   - Copia la **Project URL** y la **anon / public Key**.
-   - Ábrelo en el archivo `supabaseClient.js`:
-     ```javascript
-     const SUPABASE_CONFIG = {
-         url: 'https://csmlbcbnjoqudhdfsyim.supabase.co',
-         anonKey: 'sb_publishable_0Qq4Lr52U3NeyDh1a6bWMA_HUsR1Smk'
-     };
-     ```
+### 📊 3. Dashboard de Métricas & Analítica del Sprint
+- **Gráfico de Velocidad & Burndown (Chart.js)**: Gráficos dinámicos de barras que muestran la distribución de tareas por estado de resolución.
+- **Gráfico de Carga por Prioridad**: Diagrama de rosca que visualiza la proporción de tareas según su nivel de urgencia.
+- **KPIs de Rendimiento**: Cálculo instantáneo de **Tiempo Total Invertido** en el proyecto y **Tasa de Completado (%)**.
 
----
+### 🍅 4. Hub de Enfoque Pomodoro (Focus Engine)
+- **Temporizador de Concentración**: Motor Pomodoro integrado con bloques de trabajo de 25 minutos y pausas cortas (5 min) o largas (15 min).
+- **Contador de Sesiones**: Registra las sesiones de enfoque completadas durante la jornada de trabajo.
 
-## 🌐 Cómo Desplegar tu propio Link en Vercel (30 Segundos)
+### 📤 5. Exportador de Reportes a CSV
+- **Descarga de Informes**: Genera y descarga reportes detallados en formato `.csv` listos para abrir en Excel o Google Sheets con los datos de tareas, prioridades, estados y tiempo invertido acumulado.
 
-1. Entra a [https://vercel.com](https://vercel.com) e inicia sesión con tu cuenta de GitHub.
-2. Haz clic en **Add New...** ➔ **Project**.
-3. Importa tu repositorio `altamarronald05-sketch/taskflow-saas-kanban`.
-4. Haz clic en **Deploy**. ¡Tendrás tu propia URL `.vercel.app` en 30 segundos!
+### 🔐 6. Cuentas de Usuario & Seguridad
+- **Registro e Inicio de Sesión**: Autenticación segura para que cada usuario tenga su propio espacio de trabajo privado en la nube.
 
 ---
 
-## ✨ Características Destacadas
+## 🛠️ Cómo Utilizar la Aplicación
 
-- ⚡ **Base de Datos PostgreSQL Cloud**: Almacenamiento seguro administrado por Supabase.
-- 🔒 **Row Level Security (RLS)**: Las tareas de cada usuario están protegidas y aisladas a nivel de motor de base de datos SQL.
-- 🔐 **Autenticación Nativa JWT**: Registro e inicio de sesión seguro con contraseñas encriptadas.
-- 📌 **Tablero Kanban Drag & Drop**: Movimiento de tareas entre columnas con persistencia instantánea.
-- ⏱️ **Timer Pomodoro**: Modo de enfoque de 25 minutos.
-- 📤 **Exportación CSV**: Descarga de reportes filtrados por usuario.
+1. **Crear una Cuenta / Iniciar Sesión**: Registra tu cuenta en la pantalla inicial.
+2. **Crear Tareas**: Haz clic en el botón `+ Nueva Tarea`, ingresa el título, descripción, prioridad, categoría y fecha límite.
+3. **Iniciar el Time Tracker**: Haz clic en el botón `Play` de cualquier tarea para empezar a registrar el tiempo de trabajo activo.
+4. **Ver Métricas del Sprint**: Haz clic en la pestaña **Métricas & Sprint** de la barra lateral para ver los gráficos de rendimiento.
+5. **Exportar Reportes**: Haz clic en `Exportar CSV` para descargar tu reporte de productividad.
 
 ---
 
 ## 📄 Licencia
 
-MIT License — Libre para uso comercial, demostración en portafolios de desarrollo web Full-Stack y proyectos educacionales.
+Este proyecto está bajo la Licencia **MIT** — Libre para uso personal, comercial y demostración en portafolios de desarrollo web Full-Stack.
