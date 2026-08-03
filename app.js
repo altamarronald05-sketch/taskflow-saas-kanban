@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hasSupabase) {
             state.mode = 'supabase';
             statusTitleText.textContent = '⚡ Supabase Cloud';
-            serverStatusText.textContent = '🟢 PostgreSQL + Auth Active';
+            serverStatusText.textContent = '🟢 PostgreSQL + Auth Activo';
             await checkSupabaseSession();
         } else {
             state.mode = 'node';
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (session && session.user) {
                 const user = {
                     id: session.user.id,
-                    name: session.user.user_metadata.name || session.user.email.split('@')[0],
+                    name: (session.user.user_metadata && session.user.user_metadata.name) || session.user.email.split('@')[0],
                     email: session.user.email
                 };
                 setLoggedInUser(user, session.access_token);
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Logout
     async function logoutUser() {
         if (state.mode === 'supabase' && supabaseClient) {
-            await supabaseClient.auth.signOut();
+            try { await supabaseClient.auth.signOut(); } catch (e) {}
         } else if (state.sessionToken) {
             try {
                 await fetch(`${NODE_API_URL}/auth/logout`, {
@@ -205,29 +205,39 @@ document.addEventListener('DOMContentLoaded', () => {
             formLogin.classList.remove('active');
         });
 
-        // LOGIN
+        // LOGIN SUBMIT
         formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
+            const btnSubmit = formLogin.querySelector('button[type="submit"]');
 
-            if (state.mode === 'supabase' && supabaseClient) {
-                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) {
-                    showToast(error.message, 'warning');
-                } else if (data.user) {
-                    const user = {
-                        id: data.user.id,
-                        name: data.user.user_metadata.name || email.split('@')[0],
-                        email: data.user.email
-                    };
-                    setLoggedInUser(user, data.session.access_token);
-                    await fetchTasks();
-                    showToast(`¡Conectado a Supabase Cloud! Bienvenido, ${user.name}`, 'success');
-                }
-            } else {
-                // Node.js REST API Login
-                try {
+            if (!email || !password) {
+                showToast('Ingresa tu email y contraseña', 'warning');
+                return;
+            }
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Autenticando...';
+
+            try {
+                if (state.mode === 'supabase' && supabaseClient) {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    
+                    if (error) {
+                        showToast(`Supabase: ${error.message}`, 'warning');
+                    } else if (data && data.user) {
+                        const user = {
+                            id: data.user.id,
+                            name: (data.user.user_metadata && data.user.user_metadata.name) || email.split('@')[0],
+                            email: data.user.email
+                        };
+                        setLoggedInUser(user, data.session ? data.session.access_token : '');
+                        await fetchTasks();
+                        showToast(`¡Conectado a Supabase! Bienvenido ${user.name}`, 'success');
+                    }
+                } else {
+                    // Node.js REST API Login
                     const res = await fetch(`${NODE_API_URL}/auth/login`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -241,36 +251,59 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         showToast(data.error || 'Error al iniciar sesión', 'warning');
                     }
-                } catch (err) {
-                    showToast('Servidor backend no disponible', 'warning');
                 }
+            } catch (err) {
+                showToast('Error de conexión al autenticar', 'warning');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
             }
         });
 
-        // REGISTER
+        // REGISTER SUBMIT
         formRegister.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('reg-name').value.trim();
             const email = document.getElementById('reg-email').value.trim();
             const password = document.getElementById('reg-password').value;
+            const btnSubmit = formRegister.querySelector('button[type="submit"]');
 
-            if (state.mode === 'supabase' && supabaseClient) {
-                const { data, error } = await supabaseClient.auth.signUp({
-                    email,
-                    password,
-                    options: { data: { name } }
-                });
-                if (error) {
-                    showToast(error.message, 'warning');
-                } else if (data.user) {
-                    const user = { id: data.user.id, name, email };
-                    if (data.session) setLoggedInUser(user, data.session.access_token);
-                    showToast('Cuenta creada en Supabase Cloud', 'success');
-                    await fetchTasks();
-                }
-            } else {
-                // Node.js REST API Register
-                try {
+            if (!name || !email || !password) {
+                showToast('Completa todos los campos requeridos', 'warning');
+                return;
+            }
+
+            if (password.length < 6) {
+                showToast('La contraseña debe tener al menos 6 caracteres', 'warning');
+                return;
+            }
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registrando...';
+
+            try {
+                if (state.mode === 'supabase' && supabaseClient) {
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email,
+                        password,
+                        options: { data: { name } }
+                    });
+
+                    if (error) {
+                        showToast(`Supabase Auth: ${error.message}`, 'warning');
+                    } else if (data && data.user) {
+                        const user = { id: data.user.id, name, email };
+                        if (data.session) {
+                            setLoggedInUser(user, data.session.access_token);
+                            await fetchTasks();
+                            showToast(`¡Cuenta registrada en Supabase! Bienvenido ${name}`, 'success');
+                        } else {
+                            showToast('Cuenta creada. Si requiere confirmación por correo, revisa tu email o intenta Iniciar Sesión.', 'info');
+                            tabLoginBtn.click();
+                        }
+                    }
+                } else {
+                    // Node.js REST API Register
                     const res = await fetch(`${NODE_API_URL}/auth/register`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -284,9 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         showToast(data.error || 'Error al registrar', 'warning');
                     }
-                } catch (err) {
-                    showToast('Error al conectar con el servidor', 'warning');
                 }
+            } catch (err) {
+                showToast('Error de conexión al registrar cuenta', 'warning');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta';
             }
         });
     }
@@ -296,22 +332,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state.currentUser) return;
 
         if (state.mode === 'supabase' && supabaseClient) {
-            const { data, error } = await supabaseClient
-                .from('tasks')
-                .select('*')
-                .order('created_at', { ascending: false });
+            try {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .select('*')
+                    .order('created_at', { ascending: false });
 
-            if (!error && data) {
-                state.tasks = data.map(t => ({
-                    id: t.id,
-                    title: t.title,
-                    desc: t.description,
-                    priority: t.priority,
-                    category: t.category,
-                    status: t.status,
-                    dueDate: t.due_date
-                }));
-            }
+                if (!error && data) {
+                    state.tasks = data.map(t => ({
+                        id: t.id,
+                        title: t.title,
+                        desc: t.description,
+                        priority: t.priority,
+                        category: t.category,
+                        status: t.status,
+                        dueDate: t.due_date
+                    }));
+                }
+            } catch (err) {}
         } else {
             // Node.js API
             try {
@@ -540,6 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     renderBoard();
                     showToast('Tarea creada en Supabase Cloud PostgreSQL (201)', 'success');
+                } else if (error) {
+                    showToast(`Error Supabase DB: ${error.message}`, 'warning');
                 }
             } else {
                 try {
@@ -689,7 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.innerHTML = `<i class="fa-solid ${icons[type] || 'fa-bell'}"></i> <span>${escapeHtml(msg)}</span>`;
         toastContainer.appendChild(toast);
 
-        setTimeout(() => { toast.remove(); }, 3200);
+        setTimeout(() => { toast.remove(); }, 3500);
     }
 
     function escapeHtml(str) {
