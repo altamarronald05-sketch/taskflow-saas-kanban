@@ -1,8 +1,19 @@
 # ⚡ TaskFlow SaaS — Hybrid Supabase Cloud & Node.js Full-Stack Workspace
 
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Live_Demo-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://taskflow-saas-kanban.vercel.app)
+[![Supabase PostgreSQL](https://img.shields.io/badge/Supabase-Cloud_PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![Node.js API](https://img.shields.io/badge/Node.js-REST_API-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
+
 **TaskFlow SaaS** es una plataforma **Full-Stack nivel Producción / Enterprise** inspirada en Trello y Linear. Soporta una arquitectura híbrida con **Supabase Cloud (PostgreSQL + Auth + RLS)** y respaldo local en **Node.js REST API**.
 
 ![TaskFlow SaaS Banner](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80)
+
+---
+
+## 🚀 Enlace de Demo En Vivo (Live Production Demo)
+
+🌐 **Prueba la aplicación web en producción:**  
+👉 [https://taskflow-saas-kanban.vercel.app](https://taskflow-saas-kanban.vercel.app)
 
 ---
 
@@ -40,12 +51,19 @@
    - Ábrelo en el archivo `supabaseClient.js`:
      ```javascript
      const SUPABASE_CONFIG = {
-         url: 'https://tu-proyecto.supabase.co',
-         anonKey: 'tu-anon-public-key'
+         url: 'https://csmlbcbnjoqudhdfsyim.supabase.co',
+         anonKey: 'sb_publishable_0Qq4Lr52U3NeyDh1a6bWMA_HUsR1Smk'
      };
      ```
 
-¡Listo! La aplicación detectará tus llaves y se conectará automáticamente a tu base de datos **PostgreSQL en la Nube**.
+---
+
+## 🌐 Cómo Desplegar tu propio Link en Vercel (30 Segundos)
+
+1. Entra a [https://vercel.com](https://vercel.com) e inicia sesión con tu cuenta de GitHub.
+2. Haz clic en **Add New...** ➔ **Project**.
+3. Importa tu repositorio `altamarronald05-sketch/taskflow-saas-kanban`.
+4. Haz clic en **Deploy**. ¡Tendrás tu propia URL `.vercel.app` en 30 segundos!
 
 ---
 
