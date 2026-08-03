@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow SaaS | Agile Cloud Workspace (Supabase PostgreSQL + Node.js REST API)</title>
+    <meta name="description" content="Plataforma Full-Stack de gestión de proyectos estilo Kanban con autenticación de usuarios, Supabase Cloud PostgreSQL, arrastrar y soltar, temporizador Pomodoro.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Auth Screen Overlay (Login / Register) -->
+    <div class="auth-overlay" id="auth-overlay">
+        <div class="auth-card glass">
+            <div class="auth-header">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-square-poll-vertical"></i>
+                    <span>Task<span class="highlight">Flow</span> <small class="fs-tag">SUPABASE CLOUD</small></span>
+                </div>
+                <p class="auth-subtitle">Ingresa a tu espacio de trabajo ágil con autenticación cifrada en la nube.</p>
+            </div>
+
+            <!-- Auth Tabs Switcher -->
+            <div class="auth-tabs">
+                <button class="auth-tab-btn active" id="tab-login-btn">Iniciar Sesión</button>
+                <button class="auth-tab-btn" id="tab-register-btn">Crear Cuenta</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="form-login" class="auth-form active">
+                <div class="form-group">
+                    <label for="login-email">Correo Electrónico</label>
+                    <input type="email" id="login-email" placeholder="tu@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Contraseña</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">
+                    <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión en la Nube
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="form-register" class="auth-form">
+                <div class="form-group">
+                    <label for="reg-name">Nombre Completo</label>
+                    <input type="text" id="reg-name" placeholder="Ej. Ronald Altamar" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">Correo Electrónico</label>
+                    <input type="email" id="reg-email" placeholder="tu@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Contraseña (Mínimo 6 caracteres)</label>
+                    <input type="password" id="reg-password" placeholder="••••••••" required minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">
+                    <i class="fa-solid fa-user-plus"></i> Crear Cuenta en Supabase
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Workspace Application -->
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-square-poll-vertical"></i>
+                    <span>Task<span class="highlight">Flow</span> <small class="fs-tag">CLOUD</small></span>
+                </div>
+            </div>
+
+            <!-- Cloud Connection Status Widget -->
+            <div class="server-status-card" id="server-status-card">
+                <div class="server-status-header">
+                    <span class="pulse-dot-green" id="status-pulse-dot"></span>
+                    <span class="status-title" id="status-title-text">Supabase Cloud</span>
+                </div>
+                <div class="status-desc" id="server-status-text">Conectando...</div>
+            </div>
+
+            <div class="workspace-selector">
+                <span class="label">Espacio de Trabajo</span>
+                <div class="selector-box">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Mi Proyecto Kanban</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" id="nav-kanban">
+                    <i class="fa-solid fa-bars-staggered"></i>
+                    <span>Tablero Kanban</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-analytics">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Métricas & Sprint</span>
+                </a>
+                <a href="#" class="nav-item" id="nav-timer">
+                    <i class="fa-solid fa-stopwatch"></i>
+                    <span>Timer Pomodoro</span>
+                </a>
+            </nav>
+
+            <!-- Pomodoro Quick Widget -->
+            <div class="sidebar-timer-card">
+                <div class="timer-header">
+                    <i class="fa-solid fa-bolt"></i> Focus Mode (Pomodoro)
+                </div>
+                <div class="timer-display" id="sidebar-timer">25:00</div>
+                <div class="timer-controls">
+                    <button class="btn-timer" id="btn-start-timer"><i class="fa-solid fa-play"></i></button>
+                    <button class="btn-timer" id="btn-pause-timer"><i class="fa-solid fa-pause"></i></button>
+                    <button class="btn-timer" id="btn-reset-timer"><i class="fa-solid fa-rotate-left"></i></button>
+                </div>
+            </div>
+
+            <!-- Active User Profile & Logout -->
+            <div class="user-profile-bottom">
+                <div class="user-avatar-circle" id="user-avatar-initials">US</div>
+                <div class="user-details">
+                    <span class="name" id="user-display-name">Cargando...</span>
+                    <span class="role" id="user-display-email">usuario@email.com</span>
+                </div>
+                <button class="btn-logout" id="btn-logout" title="Cerrar Sesión">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h2>Sprint Kanban de <span id="header-user-firstname">Usuario</span></h2>
+                    <span class="sprint-badge"><i class="fa-solid fa-cloud"></i> PostgreSQL Cloud + Row Level Security (RLS)</span>
+                </div>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="task-search-input" placeholder="Buscar tus tareas en la nube...">
+                    </div>
+                    <button class="btn btn-secondary" id="btn-export-csv">
+                        <i class="fa-solid fa-file-csv"></i> Exportar CSV
+                    </button>
+                    <button class="btn btn-primary" id="btn-add-task-main">
+                        <i class="fa-solid fa-plus"></i> Nueva Tarea
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Kanban Board -->
+            <div class="kanban-scroll-area">
+                <!-- Filter Bar -->
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <span class="filter-label">Prioridad:</span>
+                        <button class="filter-chip active" data-priority="all">Todas</button>
+                        <button class="filter-chip" data-priority="Alta">🔥 Alta</button>
+                        <button class="filter-chip" data-priority="Media">⚡ Media</button>
+                        <button class="filter-chip" data-priority="Baja">🌱 Baja</button>
+                    </div>
+                    <div class="stats-mini">
+                        <span id="stat-total-tasks">0 Tareas</span> |
+                        <span id="stat-completed-tasks" class="highlight-green">Completadas: 0</span>
+                    </div>
+                </div>
+
+                <!-- Kanban Columns Grid -->
+                <div class="kanban-grid">
+                    <!-- Column 1: To Do -->
+                    <div class="kanban-column" id="col-todo" data-status="todo">
+                        <div class="column-header">
+                            <div class="column-title">
+                                <span class="dot-indicator blue"></span>
+                                <h3>Por Hacer</h3>
+                                <span class="count-badge" id="count-todo">0</span>
+                            </div>
+                            <button class="btn-add-col" data-col="todo"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <div class="task-list" id="list-todo">
+                            <!-- Empty State or User Cards -->
+                        </div>
+                    </div>
+
+                    <!-- Column 2: In Progress -->
+                    <div class="kanban-column" id="col-in-progress" data-status="in-progress">
+                        <div class="column-header">
+                            <div class="column-title">
+                                <span class="dot-indicator amber"></span>
+                                <h3>En Progreso</h3>
+                                <span class="count-badge" id="count-in-progress">0</span>
+                            </div>
+                            <button class="btn-add-col" data-col="in-progress"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <div class="task-list" id="list-in-progress">
+                            <!-- Empty State or User Cards -->
+                        </div>
+                    </div>
+
+                    <!-- Column 3: In Review -->
+                    <div class="kanban-column" id="col-review" data-status="review">
+                        <div class="column-header">
+                            <div class="column-title">
+                                <span class="dot-indicator purple"></span>
+                                <h3>En Revisión</h3>
+                                <span class="count-badge" id="count-review">0</span>
+                            </div>
+                            <button class="btn-add-col" data-col="review"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <div class="task-list" id="list-review">
+                            <!-- Empty State or User Cards -->
+                        </div>
+                    </div>
+
+                    <!-- Column 4: Done -->
+                    <div class="kanban-column" id="col-done" data-status="done">
+                        <div class="column-header">
+                            <div class="column-title">
+                                <span class="dot-indicator green"></span>
+                                <h3>Completado</h3>
+                                <span class="count-badge" id="count-done">0</span>
+                            </div>
+                            <button class="btn-add-col" data-col="done"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <div class="task-list" id="list-done">
+                            <!-- Empty State or User Cards -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para Agregar / Editar Tarea -->
+    <div class="modal-backdrop" id="task-modal">
+        <div class="modal-card glass">
+            <div class="modal-header">
+                <h3 id="modal-form-title"><i class="fa-solid fa-square-plus"></i> Nueva Tarea en la Nube</h3>
+                <button class="btn-close" id="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-task">
+                <input type="hidden" id="task-id">
+                <div class="form-group">
+                    <label for="task-title">Título de la Tarea</label>
+                    <input type="text" id="task-title" placeholder="Ej. Implementar integración Supabase Auth..." required>
+                </div>
+                <div class="form-group">
+                    <label for="task-desc">Descripción Detallada</label>
+                    <textarea id="task-desc" rows="3" placeholder="Detalles, notas o especificaciones técnicas..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task-priority">Prioridad</label>
+                        <select id="task-priority">
+                            <option value="Alta">🔥 Alta</option>
+                            <option value="Media" selected>⚡ Media</option>
+                            <option value="Baja">🌱 Baja</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-category">Categoría / Tag</label>
+                        <select id="task-category">
+                            <option value="Frontend">Frontend</option>
+                            <option value="Backend">Backend API</option>
+                            <option value="UI/UX">Diseño UI/UX</option>
+                            <option value="DevOps">DevOps & Cloud</option>
+                            <option value="QA / Bugs">QA / Testing</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task-status-select">Estado / Columna</label>
+                        <select id="task-status-select">
+                            <option value="todo">Por Hacer</option>
+                            <option value="in-progress">En Progreso</option>
+                            <option value="review">En Revisión</option>
+                            <option value="done">Completado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-due">Fecha Límite</label>
+                        <input type="date" id="task-due" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar en Supabase PostgreSQL</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="supabaseClient.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
