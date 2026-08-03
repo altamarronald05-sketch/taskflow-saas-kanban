@@ -2,13 +2,10 @@
    TaskFlow SaaS | Supabase Cloud Connection & Configuration Module
    ========================================================================== */
 
-// Configura aquí tus credenciales de Supabase (Obtenidas de https://supabase.com -> Project Settings -> API)
+// Credenciales del proyecto "TaskFlow SaaS" en Supabase Cloud
 const SUPABASE_CONFIG = {
-    // Reemplaza con tu URL de proyecto de Supabase (ej. "https://xyzcompany.supabase.co")
-    url: 'YOUR_SUPABASE_URL',
-    
-    // Reemplaza con tu Anon Public Key de Supabase
-    anonKey: 'YOUR_SUPABASE_ANON_KEY'
+    url: 'https://csmlbcbnjoqudhdfsyim.supabase.co',
+    anonKey: 'sb_publishable_0Qq4Lr52U3NeyDh1a6bWMA_HUsR1Smk'
 };
 
 // Variable Global para el Cliente Supabase
