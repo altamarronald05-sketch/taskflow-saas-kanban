@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskFlow SaaS | Agile Cloud Workspace, Analytics & Time Tracker</title>
-    <meta name="description" content="Plataforma Full-Stack de gestión de proyectos estilo Kanban con autenticación de usuarios, Supabase Cloud PostgreSQL, Métricas de Sprint y Time Tracking por tarea.">
+    <title>TaskFlow SaaS | Workspace de Gestión Ágil & Registro de Tiempo</title>
+    <meta name="description" content="Plataforma SaaS de gestión de proyectos estilo Kanban con autenticación de usuarios, Métricas de Sprint y Time Tracking por tarea.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=2.0">
+    <link rel="stylesheet" href="styles.css?v=2.1">
 </head>
 <body>
     <!-- Auth Screen Overlay (Login / Register) -->
@@ -24,9 +24,9 @@
             <div class="auth-header">
                 <div class="brand-logo">
                     <i class="fa-solid fa-square-poll-vertical"></i>
-                    <span>Task<span class="highlight">Flow</span> <small class="fs-tag">SUPABASE CLOUD</small></span>
+                    <span>Task<span class="highlight">Flow</span> <small class="fs-tag">PRO</small></span>
                 </div>
-                <p class="auth-subtitle">Ingresa a tu espacio de trabajo ágil con autenticación cifrada en la nube.</p>
+                <p class="auth-subtitle">Ingresa a tu espacio de trabajo ágil con autenticación segura.</p>
             </div>
 
             <!-- Auth Tabs Switcher -->
@@ -46,7 +46,7 @@
                     <input type="password" id="login-password" placeholder="••••••••" required>
                 </div>
                 <button type="submit" class="btn btn-primary btn-full">
-                    <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión en la Nube
+                    <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
                 </button>
             </form>
 
@@ -65,7 +65,7 @@
                     <input type="password" id="reg-password" placeholder="••••••••" required minlength="6">
                 </div>
                 <button type="submit" class="btn btn-primary btn-full">
-                    <i class="fa-solid fa-user-plus"></i> Crear Cuenta en Supabase
+                    <i class="fa-solid fa-user-plus"></i> Crear Cuenta
                 </button>
             </form>
         </div>
@@ -78,17 +78,17 @@
             <div class="brand">
                 <div class="brand-logo">
                     <i class="fa-solid fa-square-poll-vertical"></i>
-                    <span>Task<span class="highlight">Flow</span> <small class="fs-tag">CLOUD</small></span>
+                    <span>Task<span class="highlight">Flow</span> <small class="fs-tag">PRO</small></span>
                 </div>
             </div>
 
-            <!-- Cloud Connection Status Widget -->
+            <!-- Workspace Status Widget -->
             <div class="server-status-card" id="server-status-card">
                 <div class="server-status-header">
                     <span class="pulse-dot-green" id="status-pulse-dot"></span>
-                    <span class="status-title" id="status-title-text">Supabase Cloud</span>
+                    <span class="status-title" id="status-title-text">Estado de Conexión</span>
                 </div>
-                <div class="status-desc" id="server-status-text">Conectando...</div>
+                <div class="status-desc" id="server-status-text">🟢 En Línea & Sincronizado</div>
             </div>
 
             <div class="workspace-selector">
@@ -146,12 +146,12 @@
             <header class="top-header">
                 <div class="header-left">
                     <h2>Sprint Kanban de <span id="header-user-firstname">Usuario</span></h2>
-                    <span class="sprint-badge"><i class="fa-solid fa-cloud"></i> PostgreSQL Cloud + Task Time Tracking</span>
+                    <span class="sprint-badge"><i class="fa-solid fa-layer-group"></i> Sprint Workspace Activo</span>
                 </div>
                 <div class="header-actions">
                     <div class="search-box">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="task-search-input" placeholder="Buscar tus tareas en la nube...">
+                        <input type="text" id="task-search-input" placeholder="Buscar tus tareas en el espacio de trabajo...">
                     </div>
                     <button class="btn btn-secondary" id="btn-export-csv">
                         <i class="fa-solid fa-file-csv"></i> Exportar CSV
@@ -345,7 +345,7 @@
                 <input type="hidden" id="task-id">
                 <div class="form-group">
                     <label for="task-title">Título de la Tarea</label>
-                    <input type="text" id="task-title" placeholder="Ej. Implementar integración Supabase Auth..." required>
+                    <input type="text" id="task-title" placeholder="Ej. Desarrollar modulo de autenticación..." required>
                 </div>
                 <div class="form-group">
                     <label for="task-desc">Descripción Detallada</label>
@@ -397,7 +397,7 @@
     <!-- Notification Toast Container -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="supabaseClient.js?v=2.0"></script>
-    <script src="app.js?v=2.0"></script>
+    <script src="supabaseClient.js?v=2.1"></script>
+    <script src="app.js?v=2.1"></script>
 </body>
 </html>

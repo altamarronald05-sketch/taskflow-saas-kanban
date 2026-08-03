@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TaskFlow SaaS | Hybrid Client (Time Tracking & Sprint Analytics Engine)
+   TaskFlow SaaS | Agile Workspace & Time Tracking Client
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -109,12 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (hasSupabase) {
             state.mode = 'supabase';
-            statusTitleText.textContent = '⚡ Supabase Cloud';
-            serverStatusText.textContent = '🟢 PostgreSQL + Auth Activo';
+            statusTitleText.textContent = 'Estado de Conexión';
+            serverStatusText.textContent = '🟢 En Línea & Sincronizado';
             await checkSupabaseSession();
         } else {
             state.mode = 'node';
-            statusTitleText.textContent = '📡 Node.js REST Engine';
+            statusTitleText.textContent = 'Estado de Conexión';
             await checkNodeHealth();
             if (state.sessionToken) {
                 await verifyNodeSession();
@@ -150,20 +150,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Node Server Health
+    // Server Health Check
     async function checkNodeHealth() {
         try {
             const res = await fetch(`${NODE_API_URL}/health`);
             if (res.ok) {
-                serverStatusText.textContent = '🟢 REST API Local Live (3000)';
+                serverStatusText.textContent = '🟢 En Línea (Servidor Local)';
             } else throw new Error();
         } catch (err) {
             serverStatusCard.classList.add('offline');
-            serverStatusText.textContent = '🟡 Configura Supabase o ejecuta node server.js';
+            serverStatusText.textContent = '🟡 Desconectado';
         }
     }
 
-    // SUPABASE SESSION CHECK
+    // SESSION CHECK
     async function checkSupabaseSession() {
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -183,7 +183,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // NODE SESSION CHECK
     async function verifyNodeSession() {
         try {
             const res = await fetch(`${NODE_API_URL}/auth/me`, {
@@ -201,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Set Logged In State
     function setLoggedInUser(user, token) {
         state.currentUser = user;
         state.sessionToken = token;
@@ -216,7 +214,6 @@ document.addEventListener('DOMContentLoaded', () => {
         authOverlay.classList.add('hidden');
     }
 
-    // Logout
     async function logoutUser() {
         stopTaskTimer();
         if (state.mode === 'supabase' && supabaseClient) {
@@ -274,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (state.mode === 'supabase' && supabaseClient) {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) {
-                        showToast(`Supabase: ${error.message}`, 'warning');
+                        showToast(`Error: ${error.message}`, 'warning');
                     } else if (data && data.user) {
                         const user = {
                             id: data.user.id,
@@ -283,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         };
                         setLoggedInUser(user, data.session ? data.session.access_token : '');
                         await fetchTasks();
-                        showToast(`¡Conectado a Supabase! Bienvenido ${user.name}`, 'success');
+                        showToast(`¡Conectado! Bienvenido ${user.name}`, 'success');
                     }
                 } else {
                     const res = await fetch(`${NODE_API_URL}/auth/login`, {
@@ -304,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast('Error de conexión al autenticar', 'warning');
             } finally {
                 btnSubmit.disabled = false;
-                btnSubmit.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión en la Nube';
+                btnSubmit.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión';
             }
         });
 
@@ -328,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     if (error) {
-                        showToast(`Supabase Auth: ${error.message}`, 'warning');
+                        showToast(`Error: ${error.message}`, 'warning');
                     } else if (data && data.user) {
                         const user = { id: data.user.id, name, email };
                         if (data.session) {
@@ -336,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             await fetchTasks();
                             showToast(`¡Cuenta registrada! Bienvenido ${name}`, 'success');
                         } else {
-                            showToast('Cuenta registrada en Supabase.', 'info');
+                            showToast('Cuenta creada con éxito. Ya puedes Iniciar Sesión.', 'info');
                             tabLoginBtn.click();
                         }
                     }
@@ -359,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast('Error de conexión', 'warning');
             } finally {
                 btnSubmit.disabled = false;
-                btnSubmit.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta en Supabase';
+                btnSubmit.innerHTML = '<i class="fa-solid fa-user-plus"></i> Crear Cuenta';
             }
         });
     }
@@ -440,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('stat-completed-tasks').textContent = `Completadas: ${completedCount}`;
     }
 
-    // Create Task Card DOM (With Time Tracker Bar)
+    // Create Task Card DOM
     function createTaskCardElement(task) {
         const card = document.createElement('div');
         card.className = 'task-card';
@@ -458,7 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <h4 class="task-title">${escapeHtml(task.title)}</h4>
             <p class="task-desc">${escapeHtml(task.desc)}</p>
 
-            <!-- Task Time Tracker Bar -->
             <div class="task-timer-bar">
                 <button class="task-timer-btn ${isTimerRunning ? 'active' : ''}" data-id="${task.id}" title="${isTimerRunning ? 'Pausar Cronómetro' : 'Iniciar Cronómetro'}">
                     <i class="fa-solid ${isTimerRunning ? 'fa-pause' : 'fa-play'}"></i>
@@ -477,7 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        // Time Tracker Button Click
         card.querySelector('.task-timer-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             toggleTaskTimer(task.id);
@@ -503,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleTaskTimer(taskId) {
         if (state.activeTimerTaskId === taskId) {
             stopTaskTimer();
-            showToast('Cronómetro de tarea pausado', 'info');
+            showToast('Cronómetro pausado', 'info');
         } else {
             stopTaskTimer();
             startTaskTimer(taskId);
@@ -609,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 } catch (err) {}
             }
-            showToast(`Tarea movida a "${newStatus}"`, 'info');
+            showToast(`Tarea actualizada`, 'info');
         }
     }
 
@@ -672,7 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const t = data[0];
                     state.tasks.unshift({ id: t.id, title: t.title, desc: t.description, priority: t.priority, category: t.category, status: t.status, dueDate: t.due_date, timeSpent: 0 });
                     renderBoard();
-                    showToast('Tarea creada en Supabase (201)', 'success');
+                    showToast('Tarea creada con éxito', 'success');
                 }
             } else {
                 try {
@@ -685,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const newTask = await res.json();
                         state.tasks.unshift(newTask);
                         renderBoard();
-                        showToast('Tarea guardada en servidor Node.js', 'success');
+                        showToast('Tarea creada con éxito', 'success');
                     }
                 } catch (err) {}
             }
@@ -707,7 +702,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const highPriorityCount = state.tasks.filter(t => t.priority === 'Alta').length;
         document.getElementById('kpi-high-priority').textContent = highPriorityCount;
 
-        // Chart 1: Sprint Velocity Line / Bar Chart
         const ctxVelocity = document.getElementById('chartSprintVelocity').getContext('2d');
         if (chartVelocityInstance) chartVelocityInstance.destroy();
 
@@ -738,7 +732,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Chart 2: Priority Distribution Doughnut Chart
         const ctxPriority = document.getElementById('chartPriorityDistribution').getContext('2d');
         if (chartPriorityInstance) chartPriorityInstance.destroy();
 
